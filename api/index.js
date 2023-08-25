@@ -29,6 +29,7 @@ app.use(cors())
 app.use(cookieParser())
 app.use(express.json());
 
+
 app.use("/api/auth", authRoute);
 app.use("/api/users", usersRoute);
 app.use("/api/hotels", hotelsRoute);
@@ -44,6 +45,8 @@ app.use((err, req, res, next) => {
     stack: err.stack,
   });
 });
+
+
 
 app.listen(8800, () => {
   connect();
