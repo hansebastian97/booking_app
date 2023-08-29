@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Fetch Code') {
             steps {
-                git branch: 'docker',
+                git branch: 'main',
                 credentialsId: 'hansebastian_github',
                 url: 'https://github.com/devopshydclub/vprofile-project.git'
 
@@ -19,67 +19,81 @@ pipeline {
         }
 
         stage('Test') {
-            steps {
-                sh 'mvn test'
+            withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {
+                script {
+                    sonarqubeScanner (
+                        serverUrl: 'http://192.168.56.140/',
+                        options: [
+                            'sonar.projectKey': 'booking-app-api',
+                            'sonar.projectVersion': '1.0',
+                            'sonar.sources': '.',
+                            'sonar.language': 'js',
+                            'sonar.sourceEncoding': 'UTF-8',
+                            'sonar.javascript.lcov.reportPaths': 'coverage/lcov-report/lcov.info',
+                            'sonar.inclusions': 'controllers/**/*.js,routes/**/*.js',
+                            'sonar.login': env.SONAR_TOKEN
+                        ]
+                    )
+                }
             }
         }
 
         // maven Checkstyle
-        stage('Code Analysis With Checkstyle') {
-            steps {
-                sh 'mvn checkstyle:checkstyle'
-            }
-            post {
-                success {
-                    echo 'Generated Analysis Result'
-                }
-            }
-        }
+        // stage('Code Analysis With Checkstyle') {
+        //     steps {
+        //         sh 'mvn checkstyle:checkstyle'
+        //     }
+        //     post {
+        //         success {
+        //             echo 'Generated Analysis Result'
+        //         }
+        //     }
+        // }
        
 
         // Sonar Scan!
-        stage('Build && SonarQube Analysis') {
-            environment {
-                scannerHome = tool 'sonar4.7'
-            }
-            // Ngasi tau dimana test result locationnya
-            steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
-                   -Dsonar.projectName=vprofile \
-                   -Dsonar.projectVersion=1.0 \
-                   -Dsonar.sources=src/ \
-                   -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
-                   -Dsonar.junit.reportsPath=target/surefire-reports/ \
-                   -Dsonar.jacoco.reportsPath=target/jacoco.exec \
-                   -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
-                }
-            }
+        // stage('Build && SonarQube Analysis') {
+        //     environment {
+        //         scannerHome = tool 'sonar4.7'
+        //     }
+        //     // Ngasi tau dimana test result locationnya
+        //     steps {
+        //         withSonarQubeEnv('sonar') {
+        //             sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
+        //            -Dsonar.projectName=vprofile \
+        //            -Dsonar.projectVersion=1.0 \
+        //            -Dsonar.sources=src/ \
+        //            -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+        //            -Dsonar.junit.reportsPath=target/surefire-reports/ \
+        //            -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+        //            -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
+        //         }
+        //     }
 
-        }
+        // }
         // Check result pakai quality gate
-        stage("Quality Gate") {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {   
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
+        // stage("Quality Gate") {
+        //     steps {
+        //         timeout(time: 1, unit: 'HOURS') {   
+        //             waitForQualityGate abortPipeline: true
+        //         }
+        //     }
+        // }
 
-        stage('Build App Image'){
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'Docker-Credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
-                    sh """
-                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                    docker image prune -a --force
-                    """
-                    script {
-                        dockerImage = docker.build( "$IMAGE_NAME" + ":latest", "./Docker-files/app/multistage/" )
-                    }
-                }
+        // stage('Build App Image'){
+        //     steps {
+        //         withCredentials([usernamePassword(credentialsId: 'Docker-Credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
+        //             sh """
+        //             echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+        //             docker image prune -a --force
+        //             """
+        //             script {
+        //                 dockerImage = docker.build( "$IMAGE_NAME" + ":latest", "./Docker-files/app/multistage/" )
+        //             }
+        //         }
 
-            }
-        }
+        //     }
+        // }
 
         // stage('Upload App Image') {
         //     steps {

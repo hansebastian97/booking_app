@@ -1,0 +1,8 @@
+FROM node:latest
+WORKDIR srv/booking_api
+COPY package.json .
+RUN yarn install
+COPY . .
+EXPOSE 8800
+ENV MONGO=${MONGO}
+CMD ["yarn", "run", "start"]
