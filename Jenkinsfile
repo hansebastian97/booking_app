@@ -1,8 +1,8 @@
 pipeline {
     agent any
     environment {
-        IMAGE_NAME = "hansebastian97/jenkins-java"
         SONAR_TOKEN = credentials('BOOKING_APP_TOKEN')
+        IMAGE_NAME = 'booking_app_api'
     }
     tools {
         maven "MAVEN3"
@@ -18,32 +18,56 @@ pipeline {
 
             }
         }
-        stage('Build && SonarQube Analysis') {
-            environment {
-                scannerHome = tool 'sonar4.7'
-            }
-            // Ngasi tau dimana test result locationnya
+
+        stage('Build App Image'){
             steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''${scannerHome}/bin/sonar-scanner \
-                   -Dsonar.projectKey=booking_app \
-                   -Dsonar.projectName=booking_app \
-                   -Dsonar.projectVersion=1.0 \
-                   -Dsonar.sources=. \
-                   -Dsonar.language=js \
-                   -Dsonar.sourceEncoding=UTF-8 \
-                   -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
-                   -Dsonar.inclusions=api/controllers/**/*.js,api/models/**/*.js,api/routes/**/*.js,api/utils/**/*.js \
-                   -Dsonar.login=$SONAR_TOKEN
-                   '''
+                dir('./api/') {
+                    withCredentials([usernamePassword(credentialsId: 'Docker-Credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
+                        sh """
+                        echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                        docker image prune -a --force
+                        """
+                        script {
+                            dockerImage = docker.build( "$IMAGE_NAME" + ":latest", ".")
+                        }
+                    }
                 }
-
-
             }
         }
 
-
-
+        stage('Test') {
+            steps {
+                dir('./api/') {
+                    script {
+                        docker.image("$IMAGE_NAME" + ":latest")
+                            .inside('-e SONAR_TOKEN=$SONAR_TOKEN') {
+                                sh 'yarn run sonar'
+                            }
+                    }
+                }
+            }
+        }
+        // stage('Build && SonarQube Analysis') {
+        //     environment {
+        //         scannerHome = tool 'sonar4.7'
+        //     }
+        //     // Ngasi tau dimana test result locationnya
+        //     steps {
+        //         withSonarQubeEnv('sonar') {
+        //             sh '''${scannerHome}/bin/sonar-scanner \
+        //            -Dsonar.projectKey=booking_app \
+        //            -Dsonar.projectName=booking_app \
+        //            -Dsonar.projectVersion=1.0 \
+        //            -Dsonar.sources=. \
+        //            -Dsonar.language=js \
+        //            -Dsonar.sourceEncoding=UTF-8 \
+        //            -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
+        //            -Dsonar.inclusions=api/controllers/**/*.js,api/models/**/*.js,api/routes/**/*.js,api/utils/**/*.js \
+        //            -Dsonar.login=$SONAR_TOKEN
+        //            '''
+        //         }
+        //     }
+        // }
         // stage('Test') {
         //     steps{
         //         withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {

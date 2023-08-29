@@ -1,4 +1,4 @@
-import sonarqubeScanner from "sonarqube-scanner";
+import {sonarqubeScanner} from "sonarqube-scanner";
 
 sonarqubeScanner({
   serverUrl: 'http://192.168.56.140/',
