@@ -3,6 +3,7 @@ pipeline {
     environment {
         SONAR_TOKEN = credentials('BOOKING_APP_TOKEN')
         IMAGE_NAME = 'booking_app_api'
+        PATH = "$PATH:/usr/local/bin"
     }
     tools {
         maven "MAVEN3"
@@ -21,44 +22,30 @@ pipeline {
 
         stage('Build App Image'){
             steps {
-                dir('./api/') {
-                    withCredentials([usernamePassword(credentialsId: 'Docker-Credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
-                        sh """
-                        echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                        docker image prune -a --force
-                        """
-                        script {
-                            dockerImage = docker.build( "$IMAGE_NAME" + ":latest", ".")
-                        }
+                sh 'docker compose up -d'
+            }
+        }
+
+        stage('Test with SonarQube') {
+            steps {
+                withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        sh 'docker exec -e SONAR_TOKEN:$SONAR_TOKEN booking_app-api yarn run sonar'
                     }
                 }
+                // Run SonarQube analysis inside the 'booking_app_api' container
+                
             }
         }
 
-        stage('Build && SonarQube Analysis') {
-            environment {
-                scannerHome = tool 'sonar4.7'
-            }
-            // Ngasi tau dimana test result locationnya
+        stage("Quality Gate") {
             steps {
-                dir('./api/') {
-                    withSonarQubeEnv('sonar') {
-                        sh '''${scannerHome}/bin/sonar-scanner \
-                    -Dsonar.projectKey=booking_app \
-                    -Dsonar.projectName=booking_app \
-                    -Dsonar.projectVersion=1.0 \
-                    -Dsonar.sources=api/ \
-                    -Dsonar.language=js \
-                    -Dsonar.sourceEncoding=UTF-8 \
-                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
-                    -Dsonar.inclusions=controllers/**/*.js,models/**/*.js,routes/**/*.js,utils/**/*.js \
-                    -Dsonar.login=$SONAR_TOKEN
-                    '''
+                timeout(time: 1, unit: 'HOURS') {   
+                    waitForQualityGate abortPipeline: true
                 }
-                }
-
             }
         }
+        
         // stage('Test') {
         //     steps{
         //         withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {
