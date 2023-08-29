@@ -1,8 +1,9 @@
 pipeline {
     agent any
-    // environment {
-    //     IMAGE_NAME = "hansebastian97/jenkins-java"
-    // }
+    environment {
+        IMAGE_NAME = "hansebastian97/jenkins-java"
+        SONAR_TOKEN = credentials('BOOKING_APP_TOKEN')
+    }
     tools {
         maven "MAVEN3"
         jdk "OracleJDK11"
@@ -13,30 +14,59 @@ pipeline {
             steps {
                 git branch: 'main',
                 credentialsId: 'hansebastian_github',
-                url: 'https://github.com/devopshydclub/vprofile-project.git'
+                url: 'https://github.com/hansebastian97/booking_app.git'
 
             }
         }
-
-        stage('Test') {
-            withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {
-                script {
-                    sonarqubeScanner (
-                        serverUrl: 'http://192.168.56.140/',
-                        options: [
-                            'sonar.projectKey': 'booking-app-api',
-                            'sonar.projectVersion': '1.0',
-                            'sonar.sources': '.',
-                            'sonar.language': 'js',
-                            'sonar.sourceEncoding': 'UTF-8',
-                            'sonar.javascript.lcov.reportPaths': 'coverage/lcov-report/lcov.info',
-                            'sonar.inclusions': 'controllers/**/*.js,routes/**/*.js',
-                            'sonar.login': env.SONAR_TOKEN
-                        ]
-                    )
+        stage('Build && SonarQube Analysis') {
+            environment {
+                scannerHome = tool 'sonar4.7'
+            }
+            // Ngasi tau dimana test result locationnya
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''${scannerHome}/bin/sonar-scanner \
+                   -Dsonar.projectKey=booking_app \
+                   -Dsonar.projectName=booking_app \
+                   -Dsonar.projectVersion=1.0 \
+                   -Dsonar.sources=. \
+                   -Dsonar.language=js \
+                   -Dsonar.sourceEncoding=UTF-8 \
+                   -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
+                   -Dsonar.inclusions=api/controllers/**/*.js,api/models/**/*.js,api/routes/**/*.js,api/utils/**/*.js \
+                   -Dsonar.login=$SONAR_TOKEN
+                   '''
                 }
+
+
             }
         }
+
+
+
+        // stage('Test') {
+        //     steps{
+        //         withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {
+        //             script {
+        //                 sonarqubeScanner (
+        //                     serverUrl: 'http://192.168.56.140/',
+        //                     options: [
+        //                         'sonar.projectKey': 'booking-app-api',
+        //                         'sonar.projectVersion': '1.0',
+        //                         'sonar.sources': '.',
+        //                         'sonar.language': 'js',
+        //                         'sonar.sourceEncoding': 'UTF-8',
+        //                         'sonar.javascript.lcov.reportPaths': 'coverage/lcov-report/lcov.info',
+        //                         'sonar.inclusions': 'controllers/**/*.js,routes/**/*.js',
+        //                         'sonar.login': '$SONAR_TOKEN',
+        //                         'sonar.scm.disabled': 'true'
+        //                     ]
+        //                 )
+        //             }
+        //         }
+        //     }
+
+        // }
 
         // maven Checkstyle
         // stage('Code Analysis With Checkstyle') {
