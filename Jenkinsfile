@@ -6,7 +6,7 @@ pipeline {
     }
     tools {
         maven "MAVEN3"
-        jdk "OracleJDK11"
+        nodejs 'NodeJS_18.17.1'
     }
 
     stages {
@@ -35,39 +35,30 @@ pipeline {
             }
         }
 
-        stage('Test') {
+        stage('Build && SonarQube Analysis') {
+            environment {
+                scannerHome = tool 'sonar4.7'
+            }
+            // Ngasi tau dimana test result locationnya
             steps {
                 dir('./api/') {
-                    script {
-                        docker.image("$IMAGE_NAME" + ":latest")
-                            .inside('-e SONAR_TOKEN=$SONAR_TOKEN') {
-                                sh 'yarn run sonar'
-                            }
-                    }
+                    withSonarQubeEnv('sonar') {
+                        sh '''${scannerHome}/bin/sonar-scanner \
+                    -Dsonar.projectKey=booking_app \
+                    -Dsonar.projectName=booking_app \
+                    -Dsonar.projectVersion=1.0 \
+                    -Dsonar.sources=api/ \
+                    -Dsonar.language=js \
+                    -Dsonar.sourceEncoding=UTF-8 \
+                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
+                    -Dsonar.inclusions=controllers/**/*.js,models/**/*.js,routes/**/*.js,utils/**/*.js \
+                    -Dsonar.login=$SONAR_TOKEN
+                    '''
                 }
+                }
+
             }
         }
-        // stage('Build && SonarQube Analysis') {
-        //     environment {
-        //         scannerHome = tool 'sonar4.7'
-        //     }
-        //     // Ngasi tau dimana test result locationnya
-        //     steps {
-        //         withSonarQubeEnv('sonar') {
-        //             sh '''${scannerHome}/bin/sonar-scanner \
-        //            -Dsonar.projectKey=booking_app \
-        //            -Dsonar.projectName=booking_app \
-        //            -Dsonar.projectVersion=1.0 \
-        //            -Dsonar.sources=. \
-        //            -Dsonar.language=js \
-        //            -Dsonar.sourceEncoding=UTF-8 \
-        //            -Dsonar.javascript.lcov.reportPaths=coverage/lcov-report/lcov.info \
-        //            -Dsonar.inclusions=api/controllers/**/*.js,api/models/**/*.js,api/routes/**/*.js,api/utils/**/*.js \
-        //            -Dsonar.login=$SONAR_TOKEN
-        //            '''
-        //         }
-        //     }
-        // }
         // stage('Test') {
         //     steps{
         //         withCredentials([string(credentialsId: 'BOOKING_APP_TOKEN', variable: 'SONAR_TOKEN')]) {

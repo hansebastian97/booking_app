@@ -41,6 +41,7 @@ services:
     build:
       context: api
       dockerfile: Dockerfile
+    container_name: booking_app-api  
     environment:
       MONGO: "mongodb://mongodb:27017/booking_app"
     networks:
